@@ -149,3 +149,65 @@ proc sql noprint;
 ;
 quit;
 %put &stmt;
+
+/***
+原始表格
+name day sale
+a 1 23
+a 2 56
+a 3 45
+…
+a 100 34
+b 1 4
+b 2 4
+b 3 5
+…
+b 100 45
+week 从1-100
+现在要sum sale for each name first 10 d, first 20d, first 30 d,一直到
+100d
+最后结果是
+name sale10d sale20d sale30d …sale100d
+a
+b
+我现在用很笨的办法, subsetting dataset 变成 很多小的 datasets
+第一个是只包括前10天, 第二个只包括前20天, …
+然后在分别做sum
+想问下有没有简单点的办法 ? 感谢!
+*****/
+
+** --oloolo
+data test;
+   do id=‘a’, ‘b’, ‘c’;
+      do day=1 to 100;
+         sale=ranuni(9796876)*100;
+         output;
+      end;
+   end;
+run;
+
+data fmt;
+   retain fmtname ‘cssale’ type ‘n’ hlo ‘M’;
+   retain start 1;
+   do end=10 to 100 by 10;
+      label=cats(put(end, Z3.),‘d’);
+      output;
+   end;
+run;
+
+proc format cntlin=fmt cntlout=fmtchk;
+run;
+proc means data=test noprint nway;
+   by id;
+   class day /mlf exclusive;
+   format day cssale.;
+   var sale;
+   output out=cumsum sum(sale)=salesum;
+run;
+proc transpose data=cumsum out=cumsumt name=day prefix=sale;
+   by id;
+   var salesum;
+   id day;
+run;
+
+
